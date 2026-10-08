@@ -1,0 +1,52 @@
+# =========================
+# Environments & Secrets
+# =========================
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+env/
+
+# =========================
+# Python & Compiled Files
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# =========================
+# Testing & Logs
+# =========================
+.pytest_cache/
+*.log
+coverage.xml
+htmlcov/
+.tox/
+.coverage
+nosetests.xml
+
+# =========================
+# Docker
+# =========================
+docker-compose.override.yml
+.docker/
+
+# =========================
+# IDEs & OS Files
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# =========================
+# Database/Local Data
+# =========================
+*.sqlite3
+*.db
+pgdata/
