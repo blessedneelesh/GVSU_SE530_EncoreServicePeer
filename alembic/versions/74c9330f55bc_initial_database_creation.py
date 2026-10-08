@@ -1,8 +1,8 @@
 """Initial database creation
 
-Revision ID: 501814bcd99f
+Revision ID: 74c9330f55bc
 Revises: 
-Create Date: 2026-10-07 18:10:32.767093
+Create Date: 2026-10-07 21:40:29.090214
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '501814bcd99f'
+revision: str = '74c9330f55bc'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -41,6 +41,26 @@ def upgrade() -> None:
     sa.UniqueConstraint('email'),
     sa.UniqueConstraint('username')
     )
+    op.create_table('concerts',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('title', sa.String(length=200), nullable=False),
+    sa.Column('venue', sa.String(length=200), nullable=False),
+    sa.Column('city', sa.String(length=100), nullable=False),
+    sa.Column('state', sa.String(length=50), nullable=False),
+    sa.Column('date', sa.Date(), nullable=False),
+    sa.Column('time', sa.Time(), nullable=False),
+    sa.Column('description', sa.Text(), nullable=False),
+    sa.Column('genre', sa.String(length=50), nullable=False),
+    sa.Column('owner_id', sa.String(length=36), nullable=False),
+    sa.Column('capacity', sa.Integer(), nullable=False),
+    sa.Column('reserved_count', sa.Integer(), nullable=False),
+    sa.Column('image_url', sa.Text(), nullable=True),
+    sa.Column('cancelled', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.Date(), nullable=False),
+    sa.Column('mood', sa.String(length=20), nullable=False),
+    sa.ForeignKeyConstraint(['owner_id'], ['users.id'], ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('refresh_tokens',
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('user_id', sa.String(length=36), nullable=False),
@@ -61,26 +81,6 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('jti')
     )
-    op.create_table('shows',
-    sa.Column('id', sa.String(length=36), nullable=False),
-    sa.Column('title', sa.String(length=200), nullable=False),
-    sa.Column('venue', sa.String(length=200), nullable=False),
-    sa.Column('city', sa.String(length=100), nullable=False),
-    sa.Column('state', sa.String(length=50), nullable=False),
-    sa.Column('date', sa.Date(), nullable=False),
-    sa.Column('time', sa.Time(), nullable=False),
-    sa.Column('description', sa.Text(), nullable=False),
-    sa.Column('genre', sa.String(length=50), nullable=False),
-    sa.Column('organizer_id', sa.String(length=36), nullable=False),
-    sa.Column('capacity', sa.Integer(), nullable=False),
-    sa.Column('reserved_count', sa.Integer(), nullable=False),
-    sa.Column('image_url', sa.Text(), nullable=True),
-    sa.Column('cancelled', sa.Boolean(), nullable=False),
-    sa.Column('created_at', sa.Date(), nullable=False),
-    sa.Column('mood', sa.String(length=20), nullable=False),
-    sa.ForeignKeyConstraint(['organizer_id'], ['users.id'], ondelete='RESTRICT'),
-    sa.PrimaryKeyConstraint('id')
-    )
     op.create_table('user_roles',
     sa.Column('user_id', sa.String(length=36), nullable=False),
     sa.Column('role_id', sa.String(length=36), nullable=False),
@@ -91,21 +91,21 @@ def upgrade() -> None:
     )
     op.create_table('comments',
     sa.Column('id', sa.String(length=36), nullable=False),
-    sa.Column('show_id', sa.String(length=36), nullable=False),
+    sa.Column('concert_id', sa.String(length=36), nullable=False),
     sa.Column('user_id', sa.String(length=36), nullable=False),
     sa.Column('text', sa.Text(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['show_id'], ['shows.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['concert_id'], ['concerts.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('reservations',
     sa.Column('id', sa.String(length=36), nullable=False),
-    sa.Column('show_id', sa.String(length=36), nullable=False),
+    sa.Column('concert_id', sa.String(length=36), nullable=False),
     sa.Column('user_id', sa.String(length=36), nullable=False),
     sa.Column('seats', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.Date(), nullable=False),
-    sa.ForeignKeyConstraint(['show_id'], ['shows.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['concert_id'], ['concerts.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -117,9 +117,9 @@ def downgrade() -> None:
     op.drop_table('reservations')
     op.drop_table('comments')
     op.drop_table('user_roles')
-    op.drop_table('shows')
     op.drop_table('revoked_tokens')
     op.drop_table('refresh_tokens')
+    op.drop_table('concerts')
     op.drop_table('users')
     op.drop_table('roles')
     # ### end Alembic commands ###
