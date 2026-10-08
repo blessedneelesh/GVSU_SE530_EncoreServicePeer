@@ -5,7 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
 class Concert(Base):
-    __tablename__ = "shows"
+    __tablename__ = "concerts"
 
     # Auto-generates a UUID string like "123e4567-e89b-12d3-a456-426614174000"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -18,7 +18,7 @@ class Concert(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     genre: Mapped[str] = mapped_column(String(50), nullable=False)
     
-    organizer_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    owner_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     
     capacity: Mapped[int] = mapped_column(Integer, nullable=False)
     reserved_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
