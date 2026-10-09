@@ -1,8 +1,8 @@
-"""Initial database creation
+"""Initial database creation with constraints
 
-Revision ID: 74c9330f55bc
+Revision ID: 7a4ec57e1669
 Revises: 
-Create Date: 2026-10-07 21:40:29.090214
+Create Date: 2026-10-09 10:50:38.892598
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '74c9330f55bc'
+revision: str = '7a4ec57e1669'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -33,8 +33,8 @@ def upgrade() -> None:
     sa.Column('username', sa.String(length=50), nullable=False),
     sa.Column('email', sa.String(length=255), nullable=False),
     sa.Column('password_hash', sa.String(length=255), nullable=False),
-    sa.Column('is_active', sa.Boolean(), nullable=False),
-    sa.Column('bio', sa.Text(), nullable=False),
+    sa.Column('is_active', sa.Boolean(), server_default=sa.text('True'), nullable=False),
+    sa.Column('bio', sa.Text(), server_default=sa.text("''"), nullable=False),
     sa.Column('joined_date', sa.Date(), nullable=False),
     sa.Column('last_login_at', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id'),
@@ -53,26 +53,32 @@ def upgrade() -> None:
     sa.Column('genre', sa.String(length=50), nullable=False),
     sa.Column('owner_id', sa.String(length=36), nullable=False),
     sa.Column('capacity', sa.Integer(), nullable=False),
-    sa.Column('reserved_count', sa.Integer(), nullable=False),
+    sa.Column('reserved_count', sa.Integer(), server_default=sa.text('0'), nullable=False),
     sa.Column('image_url', sa.Text(), nullable=True),
-    sa.Column('cancelled', sa.Boolean(), nullable=False),
+    sa.Column('cancelled', sa.Boolean(), server_default=sa.text('false'), nullable=False),
     sa.Column('created_at', sa.Date(), nullable=False),
     sa.Column('mood', sa.String(length=20), nullable=False),
+    sa.CheckConstraint("mood IN ('Sad', 'Angry', 'Happy')", name='chk_mood_valid'),
+    sa.CheckConstraint('capacity > 0', name='chk_capacity_positive'),
+    sa.CheckConstraint('reserved_count >= 0 AND reserved_count <= capacity', name='chk_reserved_count'),
     sa.ForeignKeyConstraint(['owner_id'], ['users.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index(op.f('ix_concerts_date'), 'concerts', ['date'], unique=False)
+    op.create_index(op.f('ix_concerts_owner_id'), 'concerts', ['owner_id'], unique=False)
     op.create_table('refresh_tokens',
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('user_id', sa.String(length=36), nullable=False),
     sa.Column('token_hash', sa.String(length=255), nullable=False),
     sa.Column('expires_at', sa.DateTime(), nullable=False),
-    sa.Column('revoked', sa.Boolean(), nullable=False),
+    sa.Column('revoked', sa.Boolean(), server_default=sa.text('false'), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('user_agent', sa.String(length=255), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('token_hash')
     )
+    op.create_index(op.f('ix_refresh_tokens_user_id'), 'refresh_tokens', ['user_id'], unique=False)
     op.create_table('revoked_tokens',
     sa.Column('jti', sa.String(length=36), nullable=False),
     sa.Column('user_id', sa.String(length=36), nullable=False),
@@ -89,6 +95,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('user_id', 'role_id')
     )
+    op.create_index(op.f('ix_user_roles_user_id'), 'user_roles', ['user_id'], unique=False)
     op.create_table('comments',
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('concert_id', sa.String(length=36), nullable=False),
@@ -99,26 +106,39 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index(op.f('ix_comments_concert_id'), 'comments', ['concert_id'], unique=False)
+    op.create_index(op.f('ix_comments_user_id'), 'comments', ['user_id'], unique=False)
     op.create_table('reservations',
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('concert_id', sa.String(length=36), nullable=False),
     sa.Column('user_id', sa.String(length=36), nullable=False),
     sa.Column('seats', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.Date(), nullable=False),
+    sa.CheckConstraint('seats > 0 AND seats <= 4', name='chk_seats_limit'),
     sa.ForeignKeyConstraint(['concert_id'], ['concerts.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index(op.f('ix_reservations_concert_id'), 'reservations', ['concert_id'], unique=False)
+    op.create_index(op.f('ix_reservations_user_id'), 'reservations', ['user_id'], unique=False)
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_index(op.f('ix_reservations_user_id'), table_name='reservations')
+    op.drop_index(op.f('ix_reservations_concert_id'), table_name='reservations')
     op.drop_table('reservations')
+    op.drop_index(op.f('ix_comments_user_id'), table_name='comments')
+    op.drop_index(op.f('ix_comments_concert_id'), table_name='comments')
     op.drop_table('comments')
+    op.drop_index(op.f('ix_user_roles_user_id'), table_name='user_roles')
     op.drop_table('user_roles')
     op.drop_table('revoked_tokens')
+    op.drop_index(op.f('ix_refresh_tokens_user_id'), table_name='refresh_tokens')
     op.drop_table('refresh_tokens')
+    op.drop_index(op.f('ix_concerts_owner_id'), table_name='concerts')
+    op.drop_index(op.f('ix_concerts_date'), table_name='concerts')
     op.drop_table('concerts')
     op.drop_table('users')
     op.drop_table('roles')
