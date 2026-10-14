@@ -89,20 +89,45 @@ def make_app(db):
     return _make
 
 
-# --- Data factories: real rows in the test DB, with valid defaults that tests can override. ---
+# --- Valid default rows. Plain functions so both the rolled-back factories below and
+# tests that need truly committed rows (e.g. concurrency tests) share one definition. ---
+
+def new_user(**overrides) -> User:
+    suffix = uuid.uuid4().hex[:8]  # unique username/email per call
+    return User(**{
+        "name": "Test User",
+        "username": f"user_{suffix}",
+        "email": f"user_{suffix}@example.com",
+        "password_hash": "not-a-real-hash",
+        "joined_date": date(2026, 1, 1),
+        **overrides,
+    })
+
+
+def new_concert(owner_id: str, **overrides) -> Concert:
+    return Concert(**{
+        "title": "Test Concert",
+        "venue": "Test Venue",
+        "city": "Grand Rapids",
+        "state": "MI",
+        "date": date(2099, 12, 1),  # far future, so "past concert" rules never trip by accident
+        "time": time(19, 30),
+        "description": "A test concert.",
+        "genre": "Rock",
+        "owner_id": owner_id,
+        "capacity": 100,
+        "created_at": date(2026, 1, 1),
+        "mood": "Happy",  # schema.sql's intended CHECK allows only Sad/Angry/Happy
+        **overrides,
+    })
+
+
+# --- Data factories: real rows in the rolled-back test session. ---
 
 @pytest.fixture
 def make_user(db):
     def _make(**overrides) -> User:
-        suffix = uuid.uuid4().hex[:8]  # unique username/email per call
-        user = User(**{
-            "name": "Test User",
-            "username": f"user_{suffix}",
-            "email": f"user_{suffix}@example.com",
-            "password_hash": "not-a-real-hash",
-            "joined_date": date(2026, 1, 1),
-            **overrides,
-        })
+        user = new_user(**overrides)
         db.add(user)
         db.flush()  # assigns the row in this transaction so FKs can reference it
         return user
@@ -113,21 +138,8 @@ def make_user(db):
 @pytest.fixture
 def make_concert(db, make_user):
     def _make(**overrides) -> Concert:
-        concert = Concert(**{
-            "title": "Test Concert",
-            "venue": "Test Venue",
-            "city": "Grand Rapids",
-            "state": "MI",
-            "date": date(2026, 12, 1),
-            "time": time(19, 30),
-            "description": "A test concert.",
-            "genre": "Rock",
-            "owner_id": overrides.pop("owner_id", None) or make_user().id,
-            "capacity": 100,
-            "created_at": date(2026, 1, 1),
-            "mood": "Happy",  # schema.sql's intended CHECK allows only Sad/Angry/Happy
-            **overrides,
-        })
+        owner_id = overrides.pop("owner_id", None) or make_user().id
+        concert = new_concert(owner_id, **overrides)
         db.add(concert)
         db.flush()
         return concert
