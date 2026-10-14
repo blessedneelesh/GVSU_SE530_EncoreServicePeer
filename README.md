@@ -19,4 +19,6 @@ Run:
 pytest -q
 ```
 
-The test run applies the Alembic migrations to `encore_test` itself, and each test's data is rolled back afterwards.
+The test run applies the Alembic migrations to `encore_test` itself. Most tests roll back their data afterwards;
+the concurrency tests in `tests/test_reservations.py` commit real rows (row locks only work across transactions)
+and delete them afterwards.
