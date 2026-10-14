@@ -16,19 +16,7 @@ def create_reservation(db: Session, concert_id: str, user_id: str, seats: int):
             detail="You can only reserve between 1 and 4 seats per request."
         )
 
-    # 2. Scalper check: Limit 4 total seats per user per show
-    existing_seats = db.query(func.sum(Invoice.seats)).filter(
-        Invoice.concert_id == concert_id,
-        Invoice.user_id == user_id
-    ).scalar() or 0  # .scalar() returns None if no rows exist, default to 0
-
-    if existing_seats + seats > 4:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Limit 4 tickets per user. You already have {existing_seats} tickets for this show."
-        )
-
-    # 3. Lock the specific concert row so no one else can book at the exact same time
+    # 2. Lock the specific concert row first
     concert = db.query(Concert).filter(Concert.id == concert_id).with_for_update().first()
     
     if not concert:
@@ -37,11 +25,23 @@ def create_reservation(db: Session, concert_id: str, user_id: str, seats: int):
             detail="Concert not found."
         )
 
-    # 4. Business Rule: Cannot book a cancelled show (409 Conflict)
+    # 3. Business Rule: Cannot book a cancelled show (409 Conflict)
     if concert.cancelled:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, 
             detail="This concert has been cancelled."
+        )
+
+    # 4. Scalper check: Limit 4 total seats per user per show (Fixes #3: returns 409 Conflict)
+    existing_seats = db.query(func.sum(Invoice.seats)).filter(
+        Invoice.concert_id == concert_id,
+        Invoice.user_id == user_id
+    ).scalar() or 0  # .scalar() returns None if no rows exist, default to 0
+
+    if existing_seats + seats > 4:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Limit 4 tickets per user. You already have {existing_seats} tickets for this show."
         )
 
     # 5. Business Rule: Check capacity (409 Conflict)
@@ -51,7 +51,7 @@ def create_reservation(db: Session, concert_id: str, user_id: str, seats: int):
             detail=f"Not enough seats available. Only {concert.capacity - concert.reserved_count} left."
         )
 
-    # 6. Create the reservation
+    # 6. Create the reservation (created_at is populated automatically by Invoice model default)
     new_reservation = Invoice(
         concert_id=concert_id,
         user_id=user_id,
