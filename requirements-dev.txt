@@ -1,0 +1,4 @@
+# Test-only dependencies, kept out of requirements.txt so they don't ship in the app image.
+-r requirements.txt
+pytest
+httpx
