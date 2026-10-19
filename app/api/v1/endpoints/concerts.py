@@ -2,7 +2,7 @@ from datetime import date
 from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
-
+from typing import Optional
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.concert import Concert
@@ -33,9 +33,17 @@ def create_concert(
 
 
 @router.get("/", status_code=status.HTTP_200_OK)
-def list_concerts(db: Session = Depends(get_db)):
-    """List all concerts."""
-    return db.query(Concert).all()
+def list_concerts(
+    owner_id: Optional[UUID] = None, 
+    db: Session = Depends(get_db)
+):
+    """List all concerts, optionally filtered by the host's user ID."""
+    query = db.query(Concert)
+    
+    if owner_id:
+        query = query.filter(Concert.owner_id == str(owner_id))
+        
+    return query.all()
 
 
 @router.get("/{concert_id}", status_code=status.HTTP_200_OK)
