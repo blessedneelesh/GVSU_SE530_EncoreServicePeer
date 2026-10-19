@@ -1,12 +1,12 @@
 """Profile routes: view and edit your own profile, view someone else's public profile."""
 from uuid import UUID
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from app.models.comment import Comment
+from app.models.concert import Concert
 from app.schemas.user import UserPublic, UserResponse, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -44,3 +44,36 @@ def read_user(user_id: UUID, db: Session = Depends(get_db)) -> User:
     if user is None or not user.is_active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
+
+@router.get("/{user_id}/activity", status_code=status.HTTP_200_OK)
+def get_user_activity(user_id: UUID, db: Session = Depends(get_db)):
+    """
+    Get a user's public comment history, including the concert titles they commented on.
+    Executes a 3-table inner join: Users -> Comments -> Concerts.
+    """
+    results = (
+        db.query(
+            User.username, 
+            Comment.text, 
+            Comment.created_at, 
+            Concert.id.label("concert_id"), 
+            Concert.title.label("concert_title")
+        )
+        .join(Comment, User.id == Comment.user_id)     # Join 1: Users to Comments
+        .join(Concert, Comment.concert_id == Concert.id) # Join 2: Comments to Concerts
+        .filter(User.id == str(user_id))
+        .order_by(Comment.created_at.desc())
+        .all()
+    )
+    
+    # Package it cleanly for the frontend
+    return [
+        {
+            "username": row.username,
+            "comment_text": row.text,
+            "created_at": row.created_at,
+            "concert_id": row.concert_id,
+            "concert_title": row.concert_title
+        }
+        for row in results
+    ]
