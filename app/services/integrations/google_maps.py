@@ -61,5 +61,5 @@ async def get_venue_coordinates(address: str) -> dict:
         "address": top_match.get("display_name", address),
         "latitude": lat,
         "longitude": lon,
-        "google_maps_url": build_google_maps_url(f"{lat},{lon}"),
+        "google_maps_url": build_google_maps_url(address),
     }
