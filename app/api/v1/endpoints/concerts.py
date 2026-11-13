@@ -73,5 +73,19 @@ async def read_concert_location_and_weather(
 ):
     """Fetch Google Maps link, coordinates, and live weather for a concert's venue."""
     concert = get_concert_by_id(db=db, concert_id=str(concert_id))
-    venue_query = getattr(concert, "location", None) or getattr(concert, "venue", "")
+    
+    # Extract location fields, ignoring any that might be empty or missing
+    location_parts = [
+        getattr(concert, "venue", ""),
+        getattr(concert, "city", ""),
+        getattr(concert, "state", "")
+    ]
+    
+    # Combines into "The Chapel, San Francisco, California"
+    venue_query = ", ".join(part for part in location_parts if part)
+    
+    # Fallback just in case old database entries lack city/state fields
+    if not venue_query:
+        venue_query = getattr(concert, "location", "")
+
     return await get_weather_for_venue(venue_query)
